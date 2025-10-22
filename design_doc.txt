@@ -1,0 +1,18 @@
+
+This program is going to take a ROM as input.
+
+We create a virtual RAM (4kb).
+	- We load the ROM into this virtual memory, starting at address 200. Some programs expect this.
+
+	- We also load font data into addresses 050–09F. (Anywhere in the first 512 bytes is fine).
+
+We create a display.
+	- 64 x 32 pixels.
+
+We also need a stack.
+	- 16 2-byte entries long.
+	- This can be stored in our emulated memory or we can just create a variable and store it outside.
+
+We need 2 registers as timers.
+
+Then we run a fetch-decode-execute cycle.
