@@ -14,10 +14,10 @@ impl Chip8 {
     pub fn decode_and_execute(&mut self, instruction: String) {
     }
 
-    pub fn fetch(&self) -> u16 {
+    pub fn fetch(&mut self) -> u16 {
         // Each instruction is 2 bytes. This means we have to read 2 words.
-        let first_byte: u8 = self.memory[pc];
-        let second_byte: u8 = self.memory[pc + 1];
+        let first_byte: u8 = self.memory[self.pc as usize];
+        let second_byte: u8 = self.memory[(self.pc as usize) + 1];
 
         let instruction: u16 = ((first_byte as u16) << 8) | second_byte as u16;
 

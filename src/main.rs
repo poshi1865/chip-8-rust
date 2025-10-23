@@ -1,5 +1,10 @@
 mod chip8;
+mod display;
+
 use chip8::Chip8;
+use display::BUFFER_WIDTH;
+use display::BUFFER_HEIGHT;
+use display::Display;
 
 fn init_machine(chip8: &mut Chip8) {
     // Load fonts
@@ -40,8 +45,14 @@ fn main() {
         stack: [0; 16],
         delay_timer: 0,
         sound_timer: 0,
-        display: [false; 64 * 32],
+        display: [false; BUFFER_WIDTH * BUFFER_HEIGHT],
         keypad: [false; 16],
     };
     init_machine(&mut chip8);
+
+    let display: Display = Display {
+        screen_width: 1280,
+        screen_height: 720
+    };
+    display.create_window();
 }
