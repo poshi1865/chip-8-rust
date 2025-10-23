@@ -38,20 +38,37 @@ impl Chip8 {
 
     pub fn draw_screen(&mut self, x: u8, y: u8, n: u16) {
         // Draw an n pixel long sprite at x and y
-        let x_coord = self.v[x] % BUFFER_WIDTH;
-        let y_coord = self.v[y] % BUFFER_HEIGHT;
+        let x_coord = self.v[x as usize] % BUFFER_WIDTH;
+        let y_coord = self.v[y as usize] % BUFFER_HEIGHT;
 
         let sprite_address = self.i;
 
-        for i in 0..n {
-            for i in buffer.iter_mut() {
-                *i = 0x05a;
-                break;
+        for i in y_coord..(y_coord + n) {
+            // A sprite address contains an 8 bit character
+            let sprite: u8 = self.memory[sprite_address as usize];
+            // Find the start index of the buffer
+            let buffer_start_index = (i * BUFFER_WIDTH) + x_coord;
+
+            let mut buffer_value: u8 = 0;
+            for j in 0..8 {
+                buffer_value = (buffer_value << 1) | (self.display.buffer[j + buffer_start_index] as u8);
+            }
+
+            // Xor the sprite and the display buffer to find out the new state of the
+            // buffer
+            let new_value_for_buffer = sprite ^ buffer_value;
+
+            // Write this to the display buffer
+            for j in 0..8 {
+                self.display.buffer[(buffer_start_index as usize) + 7 - j] = (new_value_for_buffer >> i) & 1;
+            }
+
+            if new_value_for_buffer != sprite {
+                self.v[0xf] = 1;
             }
         }
 
-
-        self.display.draw_screen(buffer);
+        self.display.draw_screen();
     }
 
     pub fn jump_to_addr(&mut self, address: u16) {

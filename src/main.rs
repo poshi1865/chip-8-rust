@@ -66,7 +66,7 @@ fn main() {
         let instruction: u16 = chip8.fetch();
         chip8.decode_and_execute(instruction);
 
-        chip8.draw_screen();
+        // chip8.draw_screen();
         chip8.clear_screen();
     }
 }

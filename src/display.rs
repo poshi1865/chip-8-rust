@@ -7,7 +7,7 @@ pub struct Display {
     pub window: Window,
     pub screen_width: usize,
     pub screen_height: usize,
-    pub buffer_state: [bool; false]
+    pub buffer: [u32; 0]
 }
 
 impl Display {
@@ -48,8 +48,8 @@ impl Display {
         self.window.update_with_buffer(&buffer, BUFFER_WIDTH, BUFFER_HEIGHT).unwrap();
     }
 
-    pub fn draw_screen(&mut self, buffer: [u32; BUFFER_WIDTH * BUFFER_HEIGHT]) {
+    pub fn draw_screen(&mut self) {
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
-        self.window.update_with_buffer(&buffer, BUFFER_WIDTH, BUFFER_HEIGHT).unwrap();
+        self.window.update_with_buffer(&self.buffer, BUFFER_WIDTH, BUFFER_HEIGHT).unwrap();
     }
 }
