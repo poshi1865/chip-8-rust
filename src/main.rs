@@ -1,12 +1,7 @@
 mod chip8;
 use chip8::Chip8;
 
-fn init_machine() {
-    // Create memory
-    let mut chip8: Chip8 = Chip8 {
-        memory: [0; 4096]
-    };
-
+fn init_machine(chip8: &mut Chip8) {
     // Load fonts
     let fonts: [u8; 80] = [
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -36,5 +31,17 @@ fn init_machine() {
 }
 
 fn main() {
-    init_machine();
+    // Create memory
+    let mut chip8: Chip8 = Chip8 {
+        memory: [0; 4096],
+        pc: 0,
+        i: 0,
+        v: [0; 16],
+        stack: [0; 16],
+        delay_timer: 0,
+        sound_timer: 0,
+        display: [false; 64 * 32],
+        keypad: [false; 16],
+    };
+    init_machine(&mut chip8);
 }
