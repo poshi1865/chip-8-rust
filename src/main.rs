@@ -1,12 +1,33 @@
 mod chip8;
-mod display;
 
 use chip8::Chip8;
+
+mod display;
 use display::BUFFER_WIDTH;
 use display::BUFFER_HEIGHT;
 use display::Display;
 
-fn init_machine(chip8: &mut Chip8) {
+fn init_machine() -> Chip8 {
+
+    let mut display: Display = Display::new(
+        "Chip 8",
+        1280,
+        720
+    );
+
+    // Create memory
+    let mut chip8: Chip8 = Chip8 {
+        memory: [0; 4096],
+        pc: 0,
+        i: 0,
+        v: [0; 16],
+        stack: [0; 16],
+        delay_timer: 0,
+        sound_timer: 0,
+        display: display,
+        keypad: [false; 16],
+    };
+
     // Load fonts
     let fonts: [u8; 80] = [
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -33,26 +54,19 @@ fn init_machine(chip8: &mut Chip8) {
         chip8.memory[i] = fonts[font_counter];
         font_counter += 1;
     }
+
+    chip8.display.create_window();
+    chip8
 }
 
 fn main() {
-    // Create memory
-    let mut chip8: Chip8 = Chip8 {
-        memory: [0; 4096],
-        pc: 0,
-        i: 0,
-        v: [0; 16],
-        stack: [0; 16],
-        delay_timer: 0,
-        sound_timer: 0,
-        display: [false; BUFFER_WIDTH * BUFFER_HEIGHT],
-        keypad: [false; 16],
-    };
-    init_machine(&mut chip8);
+    let mut chip8 = init_machine();
 
-    let display: Display = Display {
-        screen_width: 1280,
-        screen_height: 720
-    };
-    display.create_window();
+    while true {
+        let instruction: u16 = chip8.fetch();
+        chip8.decode_and_execute(instruction);
+
+        chip8.draw_screen();
+        chip8.clear_screen();
+    }
 }

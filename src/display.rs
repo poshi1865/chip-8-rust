@@ -4,15 +4,29 @@ pub const BUFFER_WIDTH: usize = 64;
 pub const BUFFER_HEIGHT: usize = 32;
 
 pub struct Display {
+    pub window: Window,
     pub screen_width: usize,
     pub screen_height: usize,
+    pub buffer_state: [bool; false]
 }
 
 impl Display {
-    pub fn create_window(&self) {
-        let mut buffer: Vec<u32> = vec![0; BUFFER_WIDTH * BUFFER_HEIGHT];
+    pub fn new(title: &str, screen_width: usize, screen_height: usize) -> Display {
+        let window = Window::new(
+            title,
+            screen_width,
+            screen_height,
+            WindowOptions::default(),
+        ).unwrap();
 
-        let mut window = Window::new(
+        return Display {
+            window: window,
+            screen_width: screen_width,
+            screen_height: screen_height
+        };
+    }
+    pub fn create_window(&mut self) {
+        self.window = Window::new(
             "Chip8",
             self.screen_width,
             self.screen_height,
@@ -22,18 +36,20 @@ impl Display {
             panic!("{}", e);
         });
 
-        window.set_target_fps(60);
+        self.window.set_target_fps(60);
+    }
 
-        while window.is_open() && !window.is_key_down(Key::Escape) {
-            for i in buffer.iter_mut() {
-                *i = 0x05a;
-                break;
-            }
-
-            // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
-            window
-                .update_with_buffer(&buffer, 64, 32)
-                .unwrap();
+    pub fn clear_screen(&mut self) {
+        let mut buffer = [0; BUFFER_WIDTH * BUFFER_HEIGHT];
+        for i in buffer.iter_mut() {
+            *i = 0;
+            break;
         }
+        self.window.update_with_buffer(&buffer, BUFFER_WIDTH, BUFFER_HEIGHT).unwrap();
+    }
+
+    pub fn draw_screen(&mut self, buffer: [u32; BUFFER_WIDTH * BUFFER_HEIGHT]) {
+        // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
+        self.window.update_with_buffer(&buffer, BUFFER_WIDTH, BUFFER_HEIGHT).unwrap();
     }
 }
