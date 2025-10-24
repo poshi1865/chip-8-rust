@@ -36,10 +36,10 @@ impl Chip8 {
         self.display.clear_screen();
     }
 
-    pub fn draw_screen(&mut self, x: u8, y: u8, n: u16) {
+    pub fn draw_screen(&mut self, x: u8, y: u8, n: u8) {
         // Draw an n pixel long sprite at x and y
-        let x_coord = self.v[x as usize] % BUFFER_WIDTH;
-        let y_coord = self.v[y as usize] % BUFFER_HEIGHT;
+        let x_coord = self.v[x as usize] % BUFFER_WIDTH as u8;
+        let y_coord = self.v[y as usize] % BUFFER_HEIGHT as u8;
 
         let sprite_address = self.i;
 
@@ -47,11 +47,11 @@ impl Chip8 {
             // A sprite address contains an 8 bit character
             let sprite: u8 = self.memory[sprite_address as usize];
             // Find the start index of the buffer
-            let buffer_start_index = (i * BUFFER_WIDTH) + x_coord;
+            let buffer_start_index = (i * BUFFER_WIDTH as u8) + x_coord;
 
             let mut buffer_value: u8 = 0;
             for j in 0..8 {
-                buffer_value = (buffer_value << 1) | (self.display.buffer[j + buffer_start_index] as u8);
+                buffer_value = (buffer_value << 1) | (self.display.buffer[(j + buffer_start_index) as usize] as u8);
             }
 
             // Xor the sprite and the display buffer to find out the new state of the
@@ -60,9 +60,19 @@ impl Chip8 {
 
             // Write this to the display buffer
             for j in 0..8 {
-                self.display.buffer[(buffer_start_index as usize) + 7 - j] = (new_value_for_buffer >> i) & 1;
+
+                // Right shift the new value by j and AND by 1. For example when j is 1:
+                // Original: 10110101
+                //
+                // After RS: 01011010
+                // 1 in BIN: 00000001
+                // AND both: 00000000 ( 0 in decimal. This is the second last bit of the original value)
+                
+                self.display.buffer[(buffer_start_index as usize) + 7 - j] = ((new_value_for_buffer >> j) & 1) as u32;
             }
 
+            // This is chip8 behaviour. If the sprite changes the display buffer, set the
+            // vf register to 1.
             if new_value_for_buffer != sprite {
                 self.v[0xf] = 1;
             }

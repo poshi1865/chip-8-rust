@@ -12,7 +12,8 @@ fn init_machine() -> Chip8 {
     let mut display: Display = Display::new(
         "Chip 8",
         1280,
-        720
+        720,
+        [0; BUFFER_HEIGHT * BUFFER_WIDTH]
     );
 
     // Create memory
@@ -62,7 +63,7 @@ fn init_machine() -> Chip8 {
 fn main() {
     let mut chip8 = init_machine();
 
-    while true {
+    loop {
         let instruction: u16 = chip8.fetch();
         chip8.decode_and_execute(instruction);
 

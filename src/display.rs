@@ -1,4 +1,4 @@
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Window, WindowOptions};
 
 pub const BUFFER_WIDTH: usize = 64;
 pub const BUFFER_HEIGHT: usize = 32;
@@ -7,11 +7,16 @@ pub struct Display {
     pub window: Window,
     pub screen_width: usize,
     pub screen_height: usize,
-    pub buffer: [u32; 0]
+    pub buffer: [u32; (BUFFER_HEIGHT * BUFFER_WIDTH) as usize]
 }
 
 impl Display {
-    pub fn new(title: &str, screen_width: usize, screen_height: usize) -> Display {
+    pub fn new(
+        title: &str,
+        screen_width: usize,
+        screen_height: usize,
+        buffer: [u32; (BUFFER_HEIGHT * BUFFER_WIDTH) as usize]
+    ) -> Display {
         let window = Window::new(
             title,
             screen_width,
@@ -22,7 +27,8 @@ impl Display {
         return Display {
             window: window,
             screen_width: screen_width,
-            screen_height: screen_height
+            screen_height: screen_height,
+            buffer: buffer
         };
     }
     pub fn create_window(&mut self) {
