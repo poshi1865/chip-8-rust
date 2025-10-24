@@ -1,5 +1,10 @@
 mod chip8;
 
+use std::env;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::Read;
+
 use chip8::Chip8;
 
 mod display;
@@ -7,7 +12,7 @@ use display::BUFFER_WIDTH;
 use display::BUFFER_HEIGHT;
 use display::Display;
 
-fn init_machine() -> Chip8 {
+fn init_machine(rom_path: String) -> Chip8 {
 
     let mut display: Display = Display::new(
         "Chip 8",
@@ -16,7 +21,7 @@ fn init_machine() -> Chip8 {
         [0; BUFFER_HEIGHT * BUFFER_WIDTH]
     );
 
-    // Create memory
+    // Create chip8 instance
     let mut chip8: Chip8 = Chip8 {
         memory: [0; 4096],
         pc: 0,
@@ -56,12 +61,28 @@ fn init_machine() -> Chip8 {
         font_counter += 1;
     }
 
+    // Load ROM
+    let file_buffer = BufReader::new(File::open(rom_path).unwrap());
+
+    for byte_or_error in file_buffer.bytes() {
+        let byte = byte_or_error.unwrap();
+        chip8.memory[0x200] = byte;
+    }
+
     chip8.display.create_window();
     chip8
 }
 
 fn main() {
-    let mut chip8 = init_machine();
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() <= 1 {
+        println!("You need to pass a rom!!.\nUsage: chip8 path_to_rom");
+        std::process::exit(-1);
+    }
+
+    let rom_path: String = args[1].clone();
+    let mut chip8 = init_machine(rom_path);
 
     loop {
         let instruction: u16 = chip8.fetch();
