@@ -1,0 +1,19 @@
+Okay here is the strat to parsing opcodes:
+
+Take an instruction, AND it by 0xF000. This will give us a value where I can look at the first bit and branch out from there.
+
+
+To get the 1st part of the instruction:
+(instruction AND 0xF000) >> 12
+
+2nd part:
+(instruction AND 0x0F00) >> 8
+
+3th part:
+(instruction AND 0x00F0) >> 4
+
+4th part:
+(instruction AND 0x000F)
+
+
+

@@ -17,17 +17,51 @@ pub struct Chip8 {
 
 impl Chip8 {
     pub fn decode_and_execute(&mut self, instruction: u16) {
+        match instruction & 0xF000 {
+            0x0000 => match instruction {
+                0x00E0 => self.clear_screen(),
+                0x00EE => {},
+                _ => panic!("Unimplemented instruction: {:x}", instruction),
+            },
+            0x1000 => {
+                let address = instruction & 0x0FFF;
+                self.jump_to_addr(address);
+            },
+            0x6000 => {
+                let x = instruction & 0x0F00;
+                let value = instruction & 0x00FF;
+                self.set_reg(x as u8, value as u8);
+            },
+            0x7000 => {
+                let x = instruction & 0x0F00;
+                let value = instruction & 0x00FF;
+                self.add_value_to_reg(x as u8, value as u8);
+            },
+            0xA000 => {
+                let value = instruction & 0x0FFF;
+                self.set_index_reg(value);
+            },
+            0xD000 => {
+                let x = (instruction & 0x0F00) as u8;
+                let y = (instruction & 0x00F0) as u8;
+                let n = (instruction & 0x000F) as u8;
+                self.draw_screen(x, y, n);
+            }
+            _ => panic!("Unimplemented instruction: {:x}", instruction),
+        };
     }
 
     pub fn fetch(&mut self) -> u16 {
         // Each instruction is 2 bytes. This means we have to read 2 words.
         let first_byte: u8 = self.memory[self.pc as usize];
+        println!("First byte {:x}", first_byte);
         let second_byte: u8 = self.memory[(self.pc as usize) + 1];
+        println!("Second byte {:x}", second_byte);
 
         let instruction: u16 = ((first_byte as u16) << 8) | second_byte as u16;
 
         //Increment pc
-        self.pc += 1;
+        self.pc += 2;
 
         return instruction;
     }
