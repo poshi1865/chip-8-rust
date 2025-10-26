@@ -64,10 +64,15 @@ fn init_machine(rom_path: String) -> Chip8 {
     // Load ROM
     let file_buffer = BufReader::new(File::open(rom_path).unwrap());
 
+    let mut address_counter = 0x200;
     for byte_or_error in file_buffer.bytes() {
         let byte = byte_or_error.unwrap();
-        chip8.memory[0x200] = byte;
+        chip8.memory[address_counter] = byte;
+        address_counter += 1;
     }
+
+    // reset to start to begin execution
+    chip8.pc = 0x200;
 
     chip8.display.create_window();
     chip8
@@ -85,7 +90,6 @@ fn main() {
     let mut chip8 = init_machine(rom_path);
 
     loop {
-        chip8.pc = 0x200;
         let instruction: u16 = chip8.fetch();
         chip8.decode_and_execute(instruction);
 

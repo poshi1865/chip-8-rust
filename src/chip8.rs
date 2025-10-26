@@ -54,9 +54,7 @@ impl Chip8 {
     pub fn fetch(&mut self) -> u16 {
         // Each instruction is 2 bytes. This means we have to read 2 words.
         let first_byte: u8 = self.memory[self.pc as usize];
-        println!("First byte {:x}", first_byte);
         let second_byte: u8 = self.memory[(self.pc as usize) + 1];
-        println!("Second byte {:x}", second_byte);
 
         let instruction: u16 = ((first_byte as u16) << 8) | second_byte as u16;
 

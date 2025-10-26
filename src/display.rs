@@ -42,7 +42,7 @@ impl Display {
             panic!("{}", e);
         });
 
-        self.window.set_target_fps(60);
+        self.window.set_target_fps(5);
     }
 
     pub fn clear_screen(&mut self) {
