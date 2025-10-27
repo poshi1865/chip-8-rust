@@ -1,5 +1,4 @@
 use crate::display::Display;
-
 use crate::display::BUFFER_HEIGHT;
 use crate::display::BUFFER_WIDTH;
 
@@ -8,7 +7,8 @@ pub struct Chip8 {
     pub pc: u16,
     pub i: u16,
     pub v: [u8; 16], // General purpose registers
-    pub stack: [u16; 16],
+    pub stack: [u16; 17], // Size is 17 because stack pointer starts from 1
+    pub stack_pointer: usize,
     pub delay_timer: u8,
     pub sound_timer: u8,
     pub display: Display,
@@ -30,12 +30,12 @@ impl Chip8 {
             0x6000 => {
                 let x = (instruction & 0x0F00) >> 8;
                 let value = instruction & 0x00FF;
-                self.set_reg(x as u8, value as u8);
+                self.set_reg(x as usize, value as u8);
             },
             0x7000 => {
                 let x = (instruction & 0x0F00) >> 8;
                 let value = instruction & 0x00FF;
-                self.add_value_to_reg(x as u8, value as u8);
+                self.add_value_to_reg(x as usize, value as u8);
             },
             0xA000 => {
                 let value = instruction & 0x0FFF;
@@ -64,11 +64,11 @@ impl Chip8 {
         return instruction;
     }
 
-    pub fn clear_screen(&mut self) {
+    fn clear_screen(&mut self) {
         self.display.clear_screen();
     }
 
-    pub fn draw_screen(&mut self, x: u8, y: u8, n: u8) {
+    fn draw_screen(&mut self, x: u8, y: u8, n: u8) {
         // Draw an n pixel long sprite at x and y
         let x_coord = self.v[x as usize] % BUFFER_WIDTH as u8;
         let y_coord = self.v[y as usize] % BUFFER_HEIGHT as u8;
@@ -115,19 +115,138 @@ impl Chip8 {
         self.display.draw_screen();
     }
 
-    pub fn jump_to_addr(&mut self, address: u16) {
+    fn jump_to_addr(&mut self, address: u16) {
         self.pc = address;
     }
 
-    pub fn set_reg(&mut self, reg_no: u8, value: u8) {
-        self.v[reg_no as usize] = value;
+    fn set_reg(&mut self, reg_no: usize, value: u8) {
+        self.v[reg_no] = value;
     }
 
-    pub fn add_value_to_reg(&mut self, reg_no: u8, value: u8) {
-        self.v[reg_no as usize] = self.v[reg_no as usize] + value;
+    fn add_value_to_reg(&mut self, reg_no: usize, value: u8) {
+        self.v[reg_no] = self.v[reg_no] + value;
     }
 
-    pub fn set_index_reg(&mut self, value: u16) {
+    fn set_index_reg(&mut self, value: u16) {
         self.i = value;
+    }
+
+    fn call(&mut self, addr: u16) {
+        self.stack_pointer += 1;
+        self.stack[self.stack_pointer] = self.pc;
+        self.pc = addr;
+    }
+
+    fn skip_if_eq(&mut self, reg_no: usize, value: u8) {
+        if self.v[reg_no] == value {
+            self.pc += 2;
+        }
+    }
+
+    fn skip_if_not_eq(&mut self, reg_no: usize, value: u8) {
+        if self.v[reg_no] != value {
+            self.pc += 2;
+        }
+    }
+
+    fn skip5(&mut self, reg_x: usize, reg_y: usize) {
+        if self.v[reg_x] == self.v[reg_y] {
+            self.pc += 2;
+        }
+    }
+
+    fn load(&mut self, reg_x: usize, reg_y: usize) {
+        self.v[reg_x] = self.v[reg_y]; 
+    }
+
+    // Arithmetic ops
+    fn OR(&mut self, reg_x: usize, reg_y: usize) {
+        self.v[reg_x] = self.v[reg_x] | self.v[reg_y]; 
+    }
+
+    fn AND(&mut self, reg_x: usize, reg_y: usize) {
+        self.v[reg_x] = self.v[reg_x] & self.v[reg_y]; 
+    }
+
+    fn XOR(&mut self, reg_x: usize, reg_y: usize) {
+        self.v[reg_x] = self.v[reg_x] ^ self.v[reg_y]; 
+    }
+
+    fn ADD(&mut self, reg_x: usize, reg_y: usize) {
+        let result = (self.v[reg_x] + self.v[reg_y]) as u16;
+        if result > 255 {
+            self.v[0xf] = 1;
+        }
+        else {
+            self.v[0xf] = 0;
+        }
+        // Keep only the lowest 8 bits
+        self.v[reg_x] = (result & 0xFF) as u8;
+    }
+
+    fn SUB(&mut self, reg_x: usize, reg_y: usize) {
+        let mut result = 0;
+        if self.v[reg_x] > self.v[reg_y] {
+            result = self.v[reg_x] - self.v[reg_y] ;
+            self.v[0xf] = 1;
+        }
+        else {
+            result = self.v[reg_y] - self.v[reg_x] ;
+            self.v[0xf] = 0;
+        }
+        self.v[reg_x] = result;
+    }
+
+    fn SHR(&mut self, reg_x: usize) {
+        let lsb = self.v[reg_x] & 0x01;
+        if (lsb == 1) {
+            self.v[0xf] = 1;
+        }
+        else {
+            self.v[0xf] = 1;
+        }
+
+        self.v[reg_x] = self.v[reg_x] >> 1;
+    }
+
+    fn SUBN(&mut self, reg_x: usize, reg_y: usize) {
+        let mut result = 0;
+        if self.v[reg_x] > self.v[reg_y] {
+            result = self.v[reg_x] - self.v[reg_y] ;
+            self.v[0xf] = 0;
+        }
+        else {
+            result = self.v[reg_y] - self.v[reg_x] ;
+            self.v[0xf] = 1;
+        }
+        self.v[reg_x] = result;
+    }
+
+    fn SHL(&mut self, reg_x: usize) {
+        let msb = self.v[reg_x] & 0x80;
+        if (msb == 1) {
+            self.v[0xf] = 1;
+        }
+        else {
+            self.v[0xf] = 1;
+        }
+
+        self.v[reg_x] = self.v[reg_x] << 1;
+    }
+    // End arithmetic ops
+
+    fn skip_if_reg_not_eq(&mut self, reg_x: usize, reg_y: usize) {
+        if self.v[reg_x] != self.v[reg_y] {
+            self.pc += 2;
+        }
+    }
+
+    fn jump_offset(&mut self, addr: u16) {
+        self.pc = addr + self.v[0] as u16;
+    }
+
+    fn random(&mut self, reg_x: usize, kk: u8) {
+        // TODO: Implement random number gen
+        self.v[reg_x] = 128 & kk;
     }
 }
