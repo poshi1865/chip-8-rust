@@ -28,12 +28,12 @@ impl Chip8 {
                 self.jump_to_addr(address);
             },
             0x6000 => {
-                let x = instruction & 0x0F00;
+                let x = (instruction & 0x0F00) >> 8;
                 let value = instruction & 0x00FF;
                 self.set_reg(x as u8, value as u8);
             },
             0x7000 => {
-                let x = instruction & 0x0F00;
+                let x = (instruction & 0x0F00) >> 8;
                 let value = instruction & 0x00FF;
                 self.add_value_to_reg(x as u8, value as u8);
             },
@@ -42,8 +42,8 @@ impl Chip8 {
                 self.set_index_reg(value);
             },
             0xD000 => {
-                let x = (instruction & 0x0F00) as u8;
-                let y = (instruction & 0x00F0) as u8;
+                let x = ((instruction & 0x0F00) >> 8) as u8;
+                let y = ((instruction & 0x00F0) >> 4) as u8;
                 let n = (instruction & 0x000F) as u8;
                 self.draw_screen(x, y, n);
             }
@@ -73,13 +73,13 @@ impl Chip8 {
         let x_coord = self.v[x as usize] % BUFFER_WIDTH as u8;
         let y_coord = self.v[y as usize] % BUFFER_HEIGHT as u8;
 
-        let sprite_address = self.i;
+        let mut sprite_address = self.i;
 
         for i in y_coord..(y_coord + n) {
             // A sprite address contains an 8 bit character
             let sprite: u8 = self.memory[sprite_address as usize];
             // Find the start index of the buffer
-            let buffer_start_index = (i * BUFFER_WIDTH as u8) + x_coord;
+            let buffer_start_index = (i as u16 * BUFFER_WIDTH as u16) + x_coord as u16;
 
             let mut buffer_value: u8 = 0;
             for j in 0..8 {
@@ -100,7 +100,8 @@ impl Chip8 {
                 // 1 in BIN: 00000001
                 // AND both: 00000000 ( 0 in decimal. This is the second last bit of the original value)
                 
-                self.display.buffer[(buffer_start_index as usize) + 7 - j] = ((new_value_for_buffer >> j) & 1) as u32;
+                let mut pixel_value = ((new_value_for_buffer >> j) & 1) as u32;
+                self.display.buffer[(buffer_start_index as usize) + 7 - j] = pixel_value;
             }
 
             // This is chip8 behaviour. If the sprite changes the display buffer, set the
@@ -108,8 +109,9 @@ impl Chip8 {
             if new_value_for_buffer != sprite {
                 self.v[0xf] = 1;
             }
-        }
 
+            sprite_address += 1;
+        }
         self.display.draw_screen();
     }
 

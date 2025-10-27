@@ -71,7 +71,7 @@ fn init_machine(rom_path: String) -> Chip8 {
         address_counter += 1;
     }
 
-    // reset to start to begin execution
+    // Set to start of ROM
     chip8.pc = 0x200;
 
     chip8.display.create_window();
@@ -92,8 +92,5 @@ fn main() {
     loop {
         let instruction: u16 = chip8.fetch();
         chip8.decode_and_execute(instruction);
-
-        // chip8.draw_screen();
-        // chip8.clear_screen();
     }
 }
