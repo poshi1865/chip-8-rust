@@ -1,6 +1,11 @@
+use minifb::Key;
+use minifb::KeyRepeat;
 use crate::display::Display;
 use crate::display::BUFFER_HEIGHT;
 use crate::display::BUFFER_WIDTH;
+
+use crate::keymap::u8_to_key;
+use crate::keymap::key_to_u8;
 
 pub struct Chip8 {
     pub memory: [u8; 4096],
@@ -199,7 +204,7 @@ impl Chip8 {
 
     fn SHR(&mut self, reg_x: usize) {
         let lsb = self.v[reg_x] & 0x01;
-        if (lsb == 1) {
+        if lsb == 1 {
             self.v[0xf] = 1;
         }
         else {
@@ -224,7 +229,7 @@ impl Chip8 {
 
     fn SHL(&mut self, reg_x: usize) {
         let msb = self.v[reg_x] & 0x80;
-        if (msb == 1) {
+        if msb == 1 {
             self.v[0xf] = 1;
         }
         else {
@@ -248,5 +253,91 @@ impl Chip8 {
     fn random(&mut self, reg_x: usize, kk: u8) {
         // TODO: Implement random number gen
         self.v[reg_x] = 128 & kk;
+    }
+
+    fn skip_if_key_pressed(&mut self, reg_x: usize) {
+        if self.display.window.is_key_down(u8_to_key(self.v[reg_x])) {
+            self.pc += 2;
+        }
+    }
+
+    fn skip_if_key_not_pressed(&mut self, reg_x: usize) {
+        if !self.display.window.is_key_down(u8_to_key(self.v[reg_x])) {
+            self.pc += 2;
+        }
+    }
+
+    fn load_delay_timer(&mut self, reg_x: usize) {
+        self.v[reg_x] = self.delay_timer;
+    }
+
+    fn load_key(&mut self, reg_x: usize) {
+        // This blocks until a valid key is pressed
+        loop {
+            let mut complete = false;
+            let pressed_keys: Vec<Key> = self.display.window.get_keys_pressed(KeyRepeat::No);
+            for key in pressed_keys {
+                if key_to_u8(key) != 255 {
+                    self.v[reg_x] = key_to_u8(key);
+                    complete = true;
+                    break;
+                }
+            }
+            if complete {
+                break;
+            }
+        }
+    }
+
+    fn set_delay_timer(&mut self, reg_x: usize) {
+        self.delay_timer = self.v[reg_x];
+    }
+
+    fn set_sound_timer(&mut self, reg_x: usize) {
+        self.sound_timer = self.v[reg_x];
+    }
+
+    fn add_i(&mut self, reg_x: usize) {
+        self.i = self.i + self.v[reg_x] as u16;
+    }
+
+    fn set_sprite_to_i(&mut self, reg_x: usize) {
+        for i in 0x50..=0x9F {
+            if self.memory[i] == self.v[reg_x] {
+                self.i = i as u16;
+            }
+        }
+    }
+
+    fn load_vx_in_i(&mut self, reg_x: usize) {
+        self.memory[self.i as usize] = self.v[reg_x] / 100;
+        self.memory[self.i as usize + 1] = (self.v[reg_x] % 100) / 10;
+        self.memory[self.i as usize + 2] = self.v[reg_x] % 10;
+    }
+
+    fn store_reg_to_mem(&mut self, reg_x: usize) {
+        let mut start_addr = self.i as usize;
+        for j in self.v {
+            if j == self.v[reg_x] {
+                break;
+            }
+            self.memory[start_addr] = j;
+        }
+    }
+
+    fn store_range(&mut self, reg_x: usize) {
+        let mut start_addr = self.i as usize;
+        for j in 0..=reg_x {
+            self.memory[start_addr] = self.v[j];
+            start_addr += 1;
+        }
+    }
+
+    fn load_range(&mut self, reg_x: usize) {
+        let mut start_addr = self.i as usize;
+        for j in 0..=reg_x {
+            self.v[j] = self.memory[start_addr];
+            start_addr += 1;
+        }
     }
 }

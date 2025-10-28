@@ -1,4 +1,6 @@
 mod chip8;
+mod display;
+mod keymap;
 
 use std::env;
 use std::fs::File;
@@ -7,7 +9,6 @@ use std::io::Read;
 
 use chip8::Chip8;
 
-mod display;
 use display::BUFFER_WIDTH;
 use display::BUFFER_HEIGHT;
 use display::Display;
