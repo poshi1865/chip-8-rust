@@ -25,33 +25,110 @@ impl Chip8 {
         match instruction & 0xF000 {
             0x0000 => match instruction {
                 0x00E0 => self.clear_screen(),
-                0x00EE => {},
+                0x00EE => self.return_from_subroutine(),
                 _ => panic!("Unimplemented instruction: {:x}", instruction),
             },
             0x1000 => {
                 let address = instruction & 0x0FFF;
                 self.jump_to_addr(address);
             },
+            0x2000 => {
+                let address = instruction & 0x0FFF;
+                self.call(address);
+            },
+            0x3000 => {
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let kk = (instruction & 0x00FF) as u8;
+                self.skip_if_eq(reg_x as usize, kk);
+            },
+            0x4000 => {
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let kk = (instruction & 0x00FF) as u8;
+                self.skip_if_not_eq(reg_x as usize, kk);
+            },
+            0x5000 => {
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let reg_y = ((instruction & 0x00F0) >> 4) as usize;
+                self.skip5(reg_x as usize, reg_y as usize);
+            },
             0x6000 => {
-                let x = (instruction & 0x0F00) >> 8;
-                let value = instruction & 0x00FF;
-                self.set_reg(x as usize, value as u8);
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let value = (instruction & 0x00FF) as u8;
+                self.set_reg(reg_x as usize, value);
             },
             0x7000 => {
-                let x = (instruction & 0x0F00) >> 8;
-                let value = instruction & 0x00FF;
-                self.add_value_to_reg(x as usize, value as u8);
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let value = (instruction & 0x00FF) as u8;
+                self.add_value_to_reg(reg_x, value);
+            },
+            0x8000 => {
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let reg_y = ((instruction & 0x00F0) >> 4) as usize;
+                let typ = (instruction & 0x000F) as u8;
+                match typ {
+                    0 => self.load(reg_x, reg_y),
+                    1 => self.OR(reg_x, reg_y),
+                    2 => self.AND(reg_x, reg_y),
+                    3 => self.XOR(reg_x, reg_y),
+                    4 => self.ADD(reg_x, reg_y),
+                    5 => self.SUB(reg_x, reg_y),
+                    6 => self.SHR(reg_x),
+                    7 => self.SUBN(reg_x, reg_y),
+                    0xE => self.SHL(reg_x),
+                    _ => panic!("Wrong instruction {:x}", instruction)
+                }
+            },
+            0x9000 => {
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let reg_y = ((instruction & 0x00F0) >> 4) as usize;
+                self.skip_if_reg_not_eq(reg_x, reg_y)
             },
             0xA000 => {
                 let value = instruction & 0x0FFF;
                 self.set_index_reg(value);
+            },
+            0xB000 => {
+                let address = instruction & 0x0FFF;
+                self.jump_offset(address);
+            },
+            0xC000 => {
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let kk = (instruction & 0x00FF) as u8;
+                self.random(reg_x, kk);
             },
             0xD000 => {
                 let x = ((instruction & 0x0F00) >> 8) as u8;
                 let y = ((instruction & 0x00F0) >> 4) as u8;
                 let n = (instruction & 0x000F) as u8;
                 self.draw_screen(x, y, n);
-            }
+            },
+            0xE000 => {
+                let typ = instruction & 0x000F;
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                let value = instruction & 0x00FF;
+
+                match typ {
+                    0x1 => self.skip_if_key_not_pressed(reg_x),
+                    0xE => self.skip_if_key_pressed(reg_x),
+                    _ => panic!("Wrong instruction {:x}", instruction)
+                }
+            },
+            0xF000 => {
+                let typ = instruction & 0x00FF;
+                let reg_x = ((instruction & 0x0F00) >> 8) as usize;
+                match typ {
+                    0x0007 => self.load_delay_timer(reg_x),
+                    0x000A => self.load_key_blocking(reg_x),
+                    0x0015 => self.set_delay_timer(reg_x),
+                    0x0018 => self.set_sound_timer(reg_x),
+                    0x001E => self.add_i(reg_x),
+                    0x0029 => self.set_sprite_to_i(reg_x),
+                    0x0033 => self.store_reg_to_mem(reg_x),
+                    0x0055 => self.store_range(reg_x),
+                    0x0065 => self.load_range(reg_x),
+                    _ => panic!("Wrong instruction {:x}", instruction)
+                }
+            },
             _ => panic!("Unimplemented instruction: {:x}", instruction),
         };
     }
@@ -69,6 +146,13 @@ impl Chip8 {
         return instruction;
     }
 
+    // instructions
+    fn return_from_subroutine(&mut self) {
+        self.pc = self.stack[self.stack_pointer];
+        self.stack_pointer -= 1;
+    }
+
+
     fn clear_screen(&mut self) {
         self.display.clear_screen();
     }
@@ -84,7 +168,7 @@ impl Chip8 {
             // A sprite address contains an 8 bit character
             let sprite: u8 = self.memory[sprite_address as usize];
             // Find the start index of the buffer
-            let buffer_start_index = (i as u16 * BUFFER_WIDTH as u16) + x_coord as u16;
+            let buffer_start_index = ((i as u16 * BUFFER_WIDTH as u16) + x_coord as u16) % 2040;
 
             let mut buffer_value: u8 = 0;
             for j in 0..8 {
@@ -129,7 +213,7 @@ impl Chip8 {
     }
 
     fn add_value_to_reg(&mut self, reg_no: usize, value: u8) {
-        self.v[reg_no] = self.v[reg_no] + value;
+        self.v[reg_no] = self.v[reg_no].wrapping_add(value);
     }
 
     fn set_index_reg(&mut self, value: u16) {
@@ -178,7 +262,7 @@ impl Chip8 {
     }
 
     fn ADD(&mut self, reg_x: usize, reg_y: usize) {
-        let result = (self.v[reg_x] + self.v[reg_y]) as u16;
+        let result = (self.v[reg_x].wrapping_add(self.v[reg_y])) as u16;
         if result > 255 {
             self.v[0xf] = 1;
         }
@@ -271,7 +355,7 @@ impl Chip8 {
         self.v[reg_x] = self.delay_timer;
     }
 
-    fn load_key(&mut self, reg_x: usize) {
+    fn load_key_blocking(&mut self, reg_x: usize) {
         // This blocks until a valid key is pressed
         loop {
             let mut complete = false;
