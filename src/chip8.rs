@@ -17,7 +17,6 @@ pub struct Chip8 {
     pub delay_timer: u8,
     pub sound_timer: u8,
     pub display: Display,
-    pub keypad: [bool; 16]
 }
 
 impl Chip8 {
@@ -105,7 +104,6 @@ impl Chip8 {
             0xE000 => {
                 let typ = instruction & 0x000F;
                 let reg_x = ((instruction & 0x0F00) >> 8) as usize;
-                let value = instruction & 0x00FF;
 
                 match typ {
                     0x1 => self.skip_if_key_not_pressed(reg_x),
@@ -123,7 +121,7 @@ impl Chip8 {
                     0x0018 => self.set_sound_timer(reg_x),
                     0x001E => self.add_i(reg_x),
                     0x0029 => self.set_sprite_to_i(reg_x),
-                    0x0033 => self.store_reg_to_mem(reg_x),
+                    0x0033 => self.store_bcd_in_mem(reg_x),
                     0x0055 => self.store_range(reg_x),
                     0x0065 => self.load_range(reg_x),
                     _ => panic!("Wrong instruction {:x}", instruction)
@@ -140,9 +138,6 @@ impl Chip8 {
 
         let instruction: u16 = ((first_byte as u16) << 8) | second_byte as u16;
 
-        //Increment pc
-        self.pc += 2;
-
         return instruction;
     }
 
@@ -154,10 +149,12 @@ impl Chip8 {
 
 
     fn clear_screen(&mut self) {
+        println!("CLS");
         self.display.clear_screen();
     }
 
     fn draw_screen(&mut self, x: u8, y: u8, n: u8) {
+        println!("Drawing Screen");
         // Draw an n pixel long sprite at x and y
         let x_coord = self.v[x as usize] % BUFFER_WIDTH as u8;
         let y_coord = self.v[y as usize] % BUFFER_HEIGHT as u8;
@@ -189,7 +186,7 @@ impl Chip8 {
                 // 1 in BIN: 00000001
                 // AND both: 00000000 ( 0 in decimal. This is the second last bit of the original value)
                 
-                let mut pixel_value = ((new_value_for_buffer >> j) & 1) as u32;
+                let pixel_value = ((new_value_for_buffer >> j) & 1) as u32;
                 self.display.buffer[(buffer_start_index as usize) + 7 - j] = pixel_value;
             }
 
@@ -201,7 +198,6 @@ impl Chip8 {
 
             sprite_address += 1;
         }
-        self.display.draw_screen();
     }
 
     fn jump_to_addr(&mut self, address: u16) {
@@ -340,13 +336,15 @@ impl Chip8 {
     }
 
     fn skip_if_key_pressed(&mut self, reg_x: usize) {
-        if self.display.window.is_key_down(u8_to_key(self.v[reg_x])) {
+        self.display.window.update();
+        if self.display.window.is_key_pressed(u8_to_key(self.v[reg_x]), KeyRepeat::No) {
             self.pc += 2;
         }
     }
 
     fn skip_if_key_not_pressed(&mut self, reg_x: usize) {
-        if !self.display.window.is_key_down(u8_to_key(self.v[reg_x])) {
+        self.display.window.update();
+        if !self.display.window.is_key_pressed(u8_to_key(self.v[reg_x]), KeyRepeat::No) {
             self.pc += 2;
         }
     }
@@ -357,7 +355,9 @@ impl Chip8 {
 
     fn load_key_blocking(&mut self, reg_x: usize) {
         // This blocks until a valid key is pressed
+        println!("Waiting for key press..");
         loop {
+            self.display.window.update();
             let mut complete = false;
             let pressed_keys: Vec<Key> = self.display.window.get_keys_pressed(KeyRepeat::No);
             for key in pressed_keys {
@@ -393,20 +393,10 @@ impl Chip8 {
         }
     }
 
-    fn load_vx_in_i(&mut self, reg_x: usize) {
+    fn store_bcd_in_mem(&mut self, reg_x: usize) {
         self.memory[self.i as usize] = self.v[reg_x] / 100;
         self.memory[self.i as usize + 1] = (self.v[reg_x] % 100) / 10;
         self.memory[self.i as usize + 2] = self.v[reg_x] % 10;
-    }
-
-    fn store_reg_to_mem(&mut self, reg_x: usize) {
-        let mut start_addr = self.i as usize;
-        for j in self.v {
-            if j == self.v[reg_x] {
-                break;
-            }
-            self.memory[start_addr] = j;
-        }
     }
 
     fn store_range(&mut self, reg_x: usize) {

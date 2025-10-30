@@ -13,9 +13,11 @@ use display::BUFFER_WIDTH;
 use display::BUFFER_HEIGHT;
 use display::Display;
 
+use minifb::Key;
+
 fn init_machine(rom_path: String) -> Chip8 {
 
-    let mut display: Display = Display::new(
+    let display: Display = Display::new(
         "Chip 8",
         1280,
         720,
@@ -33,7 +35,6 @@ fn init_machine(rom_path: String) -> Chip8 {
         delay_timer: 0,
         sound_timer: 0,
         display: display,
-        keypad: [false; 16],
     };
 
     // Load fonts
@@ -91,8 +92,15 @@ fn main() {
     let rom_path: String = args[1].clone();
     let mut chip8 = init_machine(rom_path);
 
-    loop {
+    while chip8.display.window.is_open() && !chip8.display.window.is_key_down(Key::Escape) {
         let instruction: u16 = chip8.fetch();
+        println!("Fetched instruction: {:x}", instruction);
+
+        //Increment pc
+        chip8.pc += 2;
+
         chip8.decode_and_execute(instruction);
+
+        chip8.display.draw_screen();
     }
 }
